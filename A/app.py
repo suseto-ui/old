@@ -1,3 +1,4 @@
+from services.error_logger import setup_logging
 import os
 import sys
 
@@ -30,7 +31,11 @@ from services.audit_service import write as audit_write, list_entries as audit_l
 from services.decode_service import chain as decode_chain, pattern_library
 from services.location_service import list_locations, add_location
 from services.timeline_service import add as timeline_add, list_for as timeline_list
+from services.workbench_routes import register_workbench
 app=Flask(__name__,template_folder="templates",static_folder="static"); app.config["TEMPLATES_AUTO_RELOAD"]=True; app.secret_key=CONFIG["SECRET_KEY"]; application=app
+from services.error_logger import setup_logging
+setup_logging(app)
+register_workbench(app)
 def current_user(): return {"username":session.get("username"),"role":session.get("role")} if session.get("username") else None
 def require_role(*roles):
     u=current_user()
@@ -182,6 +187,8 @@ def api_expected_audit():
  return jsonify({"found":sorted(exp & sc),"missing":sorted(exp - sc),"unexpected":sorted(sc - exp)})
 @app.post("/api/v1/debug/install_pip")
 def api_debug_install_pip():
+    if not require_role("admin"):
+        return jsonify({"error": "Vyžadována role admin."}), 403
     import subprocess, sys
     try:
         # Install packages using the exact python executable running the web app
